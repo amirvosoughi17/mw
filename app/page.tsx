@@ -136,10 +136,10 @@ const categoryKeywords: { [category: string]: string[] } = {
 };
 
 export default function HomePage() {
-  const [markets, setMarkets] = useState<PolymarketMarket[]>([]);
+  const [rawMarkets, setRawMarkets] = useState<any[]>([]);
   const [hasMore, setHasMore] = useState(true);
   const [offset, setOffset] = useState(0);
-  const limit = 200; // Reduced for faster loads
+  const limit = 100;
   const maxRawToFetch = 10000;
   const [seenIds, setSeenIds] = useState<Set<string>>(new Set());
 
@@ -150,49 +150,11 @@ export default function HomePage() {
 
   const [searchTerm, setSearchTerm] = useState("");
 
+  const [sortKey, setSortKey] = useState<"volume" | "daysLeft" | null>(null);
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
 
-  const processMarket = (market: any): PolymarketMarket => {
-    let outcomePrices: number[] = [];
-    let outcomes: string[] = [];
-
-    try {
-      outcomePrices = JSON.parse(market.outcomePrices || "[]")
-        .map((p: string) => parseFloat(p))
-        .filter((p: number) => !isNaN(p));
-    } catch {}
-
-    try {
-      outcomes = JSON.parse(market.outcomes || "[]").map((o: string) =>
-        o.trim()
-      );
-    } catch {}
-
-    const q = (market.question || "").toLowerCase();
-    let cat = "other";
-
-    for (const [key, keywords] of Object.entries(categoryKeywords)) {
-      if (keywords.some((kw) => q.includes(kw))) {
-        cat = key;
-        break;
-      }
-    }
-
-    return {
-      id: market.id ?? "",
-      question: market.question ?? "",
-      slug: market.slug ?? "",
-      outcomes,
-      outcomePrices,
-      volume: parseFloat(market.volume ?? "0") || 0,
-      active: market.active ?? false,
-      category: cat,
-      image: market.image || market.icon || "",
-    };
-  };
-
   const loadMoreRaw = async () => {
-    if (!hasMore || markets.length >= maxRawToFetch) {
+    if (!hasMore || rawMarkets.length >= maxRawToFetch) {
       setHasMore(false);
       return;
     }
@@ -206,10 +168,8 @@ export default function HomePage() {
 
       const uniqueNew = newRaw.filter((m: any) => !seenIds.has(m.id));
 
-      const processedNew = uniqueNew.map(processMarket);
-
-      if (processedNew.length > 0) {
-        setMarkets((prev) => [...prev, ...processedNew]);
+      if (uniqueNew.length > 0) {
+        setRawMarkets((prev) => [...prev, ...uniqueNew]);
         setSeenIds((prev) => {
           const newSet = new Set(prev);
           uniqueNew.forEach((m: any) => newSet.add(m.id));
@@ -218,7 +178,7 @@ export default function HomePage() {
       }
 
       setHasMore(
-        newHasMore && markets.length + processedNew.length < maxRawToFetch
+        newHasMore && rawMarkets.length + uniqueNew.length < maxRawToFetch
       );
       setOffset((prev) => prev + limit);
     } catch (err) {
@@ -244,7 +204,58 @@ export default function HomePage() {
   }, [maxYesProb]);
 
   const filteredMarkets = useMemo(() => {
-    return markets
+    let markets = rawMarkets
+      .map((market: any) => {
+        let outcomePrices: number[] = [];
+        let outcomes: string[] = [];
+
+        try {
+          outcomePrices = JSON.parse(market.outcomePrices || "[]")
+            .map((p: string) => parseFloat(p))
+            .filter((p: number) => !isNaN(p));
+        } catch {}
+
+        try {
+          outcomes = JSON.parse(market.outcomes || "[]").map((o: string) =>
+            o.trim()
+          );
+        } catch {}
+
+        const q = (market.question || "").toLowerCase();
+        let cat = "other";
+
+        for (const [key, keywords] of Object.entries(categoryKeywords)) {
+          if (keywords.some((kw) => q.includes(kw))) {
+            cat = key;
+            break;
+          }
+        }
+
+        const endDate = market.endDateIso ?? "";
+        const daysLeft = endDate
+          ? Math.max(
+              0,
+              Math.ceil(
+                (new Date(endDate).getTime() - new Date().getTime()) /
+                  (1000 * 3600 * 24)
+              )
+            )
+          : 0;
+
+        return {
+          id: market.id ?? "",
+          question: market.question ?? "",
+          slug: market.slug ?? "",
+          outcomes,
+          outcomePrices,
+          volume: parseFloat(market.volume ?? "0") || 0,
+          active: market.active ?? false,
+          category: cat,
+          image: market.image || market.icon || "",
+          endDate,
+          daysLeft,
+        };
+      })
       .filter((m) => {
         if (!m.outcomePrices.length || !m.active) return false;
 
@@ -261,11 +272,18 @@ export default function HomePage() {
       )
       .filter((m) =>
         m.question.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-      .sort((a, b) =>
-        sortOrder === "desc" ? b.volume - a.volume : a.volume - b.volume
       );
-  }, [markets, selectedCategory, minYesProb, maxYesProb, searchTerm, sortOrder]);
+
+    if (sortKey) {
+      markets = markets.sort((a, b) => {
+        const valA = sortKey === "volume" ? a.volume : a.daysLeft;
+        const valB = sortKey === "volume" ? b.volume : b.daysLeft;
+        return sortOrder === "desc" ? valB - valA : valA - valB;
+      });
+    }
+
+    return markets;
+  }, [rawMarkets, selectedCategory, minYesProb, maxYesProb, searchTerm, sortKey, sortOrder]);
 
   return (
     <main className=" mx-auto py-6 px-4 md:px-10">
@@ -273,7 +291,7 @@ export default function HomePage() {
         Polymarket Predictions – Yes بین {minYesProb}% تا {maxYesProb}%
       </h1>
 
-      <div className="mb-6 flex justify-center items-center gap-4">
+      <div className="mb-6 flex justify-center items-center gap-4 flex-wrap">
         <input
           type="text"
           placeholder="جستجوی نام پریدیکت..."
@@ -282,10 +300,30 @@ export default function HomePage() {
           className="w-full max-w-md px-4 py-2.5 rounded-full bg-gray-800 text-white border border-gray-700 focus:border-blue-500 focus:outline-none text-sm placeholder-gray-400"
         />
         <button
-          onClick={() => setSortOrder((prev) => (prev === "desc" ? "asc" : "desc"))}
-          className="px-5 py-2.5 rounded-full bg-gray-800 text-gray-300 hover:bg-gray-700 text-sm font-medium transition-all"
+          onClick={() => {
+            setSortKey("volume");
+            setSortOrder(sortOrder === "desc" && sortKey === "volume" ? "asc" : "desc");
+          }}
+          className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all ${
+            sortKey === "volume"
+              ? "bg-blue-600 text-white shadow-lg"
+              : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+          }`}
         >
-          مرتب‌سازی حجم {sortOrder === "desc" ? "↓" : "↑"}
+          مرتب‌سازی حجم {sortKey === "volume" ? (sortOrder === "desc" ? "↓" : "↑") : ""}
+        </button>
+        <button
+          onClick={() => {
+            setSortKey("daysLeft");
+            setSortOrder(sortOrder === "desc" && sortKey === "daysLeft" ? "asc" : "desc");
+          }}
+          className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all ${
+            sortKey === "daysLeft"
+              ? "bg-blue-600 text-white shadow-lg"
+              : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+          }`}
+        >
+          مرتب‌سازی روزهای باقی‌مانده {sortKey === "daysLeft" ? (sortOrder === "desc" ? "↓" : "↑") : ""}
         </button>
       </div>
 
@@ -350,7 +388,7 @@ export default function HomePage() {
       </div>
 
       <p className="text-center text-gray-400 mb-8">
-        Fetched {markets.length} markets • Showing {filteredMarkets.length}{" "}
+        Fetched {rawMarkets.length} markets • Showing {filteredMarkets.length}{" "}
         matching criteria
       </p>
 
@@ -432,7 +470,7 @@ export default function HomePage() {
                   </div>
                   <p className="text-xs text-gray-400">
                     Highest: {highestProb.toFixed(1)}% • Vol: $
-                    {(market.volume / 1000).toFixed(1)}k
+                    {(market.volume / 1000).toFixed(1)}k • Days left: {market.daysLeft}
                   </p>
 
                 </div>
