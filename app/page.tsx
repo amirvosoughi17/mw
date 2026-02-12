@@ -2,8 +2,11 @@
 
 import { useEffect, useState, useMemo } from "react";
 import InfiniteScroll from "react-infinite-scroll-component";
-import { PolymarketMarket } from "@/types/polymarket";
 import { ImSpinner8 } from "react-icons/im";
+import { Slider } from "@/components/ui/slider";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 const mainCategories = [
   "all",
@@ -153,6 +156,8 @@ export default function HomePage() {
   const [sortKey, setSortKey] = useState<"volume" | "daysLeft" | null>(null);
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
 
+  const [sheetOpen, setSheetOpen] = useState(false);
+
   const loadMoreRaw = async () => {
     if (!hasMore || rawMarkets.length >= maxRawToFetch) {
       setHasMore(false);
@@ -285,203 +290,247 @@ export default function HomePage() {
     return markets;
   }, [rawMarkets, selectedCategory, minYesProb, maxYesProb, searchTerm, sortKey, sortOrder]);
 
+  const toggleSort = (key: "volume" | "daysLeft") => {
+    if (sortKey === key) {
+      setSortOrder(sortOrder === "desc" ? "asc" : "desc");
+    } else {
+      setSortKey(key);
+      setSortOrder("desc");
+    }
+    setSheetOpen(false);
+  };
+
   return (
-    <main className=" mx-auto py-6 px-4 md:px-10">
-      <h1 className="text-4xl font-bold mb-8 text-center">
-        Polymarket Predictions – Yes بین {minYesProb}% تا {maxYesProb}%
-      </h1>
+    <main className="min-h-screen bg-black text-white">
+      {/* نوار بالا - ثابت با ظاهر جدید */}
+      <div className="fixed top-0 left-0 right-0 z-50 border-b border-neutral-800 bg-black/90 backdrop-blur-xl">
+        <div className="mx-auto max-w-7xl px-4 py-4 md:px-6">
+          <div className="flex items-center justify-between gap-4">
+            {/* لوگو جدید */}
+            <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
+              Money <span className="text-blue-500">Wins</span>
+            </h1>
 
-      <div className="mb-6 flex justify-center items-center gap-4 flex-wrap">
-        <input
-          type="text"
-          placeholder="جستجوی نام پریدیکت..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full max-w-md px-4 py-2.5 rounded-full bg-gray-800 text-white border border-gray-700 focus:border-blue-500 focus:outline-none text-sm placeholder-gray-400"
-        />
-        <button
-          onClick={() => {
-            setSortKey("volume");
-            setSortOrder(sortOrder === "desc" && sortKey === "volume" ? "asc" : "desc");
-          }}
-          className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all ${
-            sortKey === "volume"
-              ? "bg-blue-600 text-white shadow-lg"
-              : "bg-gray-800 text-gray-300 hover:bg-gray-700"
-          }`}
-        >
-          مرتب‌سازی حجم {sortKey === "volume" ? (sortOrder === "desc" ? "↓" : "↑") : ""}
-        </button>
-        <button
-          onClick={() => {
-            setSortKey("daysLeft");
-            setSortOrder(sortOrder === "desc" && sortKey === "daysLeft" ? "asc" : "desc");
-          }}
-          className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all ${
-            sortKey === "daysLeft"
-              ? "bg-blue-600 text-white shadow-lg"
-              : "bg-gray-800 text-gray-300 hover:bg-gray-700"
-          }`}
-        >
-          مرتب‌سازی روزهای باقی‌مانده {sortKey === "daysLeft" ? (sortOrder === "desc" ? "↓" : "↑") : ""}
-        </button>
-      </div>
-
-      <div className="mb-8 flex flex-wrap gap-3 justify-center overflow-x-auto pb-2">
-        {mainCategories.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setSelectedCategory(cat)}
-            className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
-              selectedCategory === cat
-                ? "bg-blue-600 text-white shadow-lg scale-105"
-                : "bg-gray-800 text-gray-300 hover:bg-gray-700"
-            }`}
-          >
-            {categoryLabels[cat]}
-          </button>
-        ))}
-      </div>
-
-      <div className="mb-10 bg-gray-800 p-6 rounded-xl">
-        <label className="block text-gray-300 text-sm mb-6 text-center">
-          محدوده احتمال گزینه Yes (گزینه اول)
-        </label>
-
-        <div className="flex flex-col gap-6">
-          <div>
-            <div className="flex justify-between text-sm text-gray-400 mb-2">
-              <span>حداقل Yes: {minYesProb}%</span>
-              <span>Min</span>
+            {/* سرچ جدید */}
+            <div className="hidden md:block flex-1 max-w-xl">
+              <Input
+                type="search"
+                placeholder="Search Predictions..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="bg-neutral-900 border-neutral-700 text-white placeholder:text-neutral-500 focus:border-blue-500 h-10 rounded-lg"
+              />
             </div>
-            <input
-              type="range"
-              min={0}
-              max={100}
-              step={5}
-              value={minYesProb}
-              onChange={(e) => setMinYesProb(Number(e.target.value))}
-              className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-green-500"
-            />
+
+            {/* دکمه فیلتر جدید */}
+            <div className="flex items-center gap-3">
+              <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+                <SheetTrigger asChild>
+                  <Button variant="outline" size="sm" className="md:hidden">
+                    Filters
+                  </Button>
+                </SheetTrigger>
+                <SheetTrigger asChild>
+                  <Button variant="outline" size="sm" className="hidden md:flex">
+                    Show Filters
+                  </Button>
+                </SheetTrigger>
+
+                <SheetContent side="right" className="w-full sm:w-[380px] bg-neutral-950 border-l border-neutral-800">
+                  <SheetHeader>
+                    <SheetTitle className="text-white text-xl mb-6">Filters & Sort</SheetTitle>
+                  </SheetHeader>
+
+                  <div className="space-y-8 py-6">
+                    {/* سرچ در موبایل */}
+                    <div className="md:hidden">
+                      <Input
+                        type="search"
+                        placeholder="Search Predictions..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="bg-neutral-900 border-neutral-700 text-white placeholder:text-neutral-500 focus:border-blue-500 rounded-lg"
+                      />
+                    </div>
+
+                    {/* اسلایدر Yes جدید */}
+                    <div>
+                      <label className="block text-gray-300 text-sm mb-4 font-medium text-center">
+                        Yes Probability Range
+                      </label>
+                      <div className="space-y-6">
+                        <div className="flex justify-between text-sm text-gray-400 px-1">
+                          <span>Min: {minYesProb}%</span>
+                          <span>Max: {maxYesProb}%</span>
+                        </div>
+                        <Slider
+                          value={[minYesProb, maxYesProb]}
+                          min={0}
+                          max={100}
+                          step={5}
+                          onValueChange={(values) => {
+                            const [newMin, newMax] = values;
+                            setMinYesProb(newMin);
+                            setMaxYesProb(newMax);
+                          }}
+                          className="w-full"
+                        />
+                        <p className="text-center text-gray-500 text-xs">
+                          Showing markets with Yes between {minYesProb}% and {maxYesProb}%
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* مرتب‌سازی جدید */}
+                    <div className="space-y-4">
+                      <label className="block text-gray-300 text-sm font-medium text-center">
+                        Sort By
+                      </label>
+                      <div className="grid gap-3">
+                        <Button
+                          variant={sortKey === "volume" ? "default" : "outline"}
+                          onClick={() => toggleSort("volume")}
+                          className="justify-between"
+                        >
+                          <span>Volume</span>
+                          <span>{sortKey === "volume" ? (sortOrder === "desc" ? "High to Low ↓" : "Low to High ↑") : ""}</span>
+                        </Button>
+                        <Button
+                          variant={sortKey === "daysLeft" ? "default" : "outline"}
+                          onClick={() => toggleSort("daysLeft")}
+                          className="justify-between"
+                        >
+                          <span>Time Left</span>
+                          <span>{sortKey === "daysLeft" ? (sortOrder === "desc" ? "Longest First ↓" : "Shortest First ↑") : ""}</span>
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </SheetContent>
+              </Sheet>
+            </div>
           </div>
 
-          <div>
-            <div className="flex justify-between text-sm text-gray-400 mb-2">
-              <span>حداکثر Yes: {maxYesProb}%</span>
-              <span>Max</span>
-            </div>
-            <input
-              type="range"
-              min={0}
-              max={100}
-              step={5}
-              value={maxYesProb}
-              onChange={(e) => setMaxYesProb(Number(e.target.value))}
-              className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-green-500"
-            />
+          {/* دسته‌بندی‌ها با ظاهر جدید */}
+          <div className="flex gap-3 md:gap-6 justify-start overflow-x-auto py-4 scrollbar-hide">
+            {mainCategories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`text-sm md:text-base font-medium transition-all duration-300 whitespace-nowrap ${
+                  selectedCategory === cat
+                    ? "text-white underline underline-offset-4 decoration-blue-500"
+                    : "text-neutral-400 hover:text-neutral-200"
+                }`}
+              >
+                {categoryLabels[cat]}
+              </button>
+            ))}
           </div>
         </div>
+      </div>
 
-        <p className="text-center text-gray-400 mt-6 text-sm">
-          فقط مارکت‌های باینری که احتمال Yesشون بین {minYesProb}% تا {maxYesProb}% هست نمایش داده می‌شود
+      {/* فضای خالی زیر نوار */}
+      <div className="h-[140px] md:h-[160px]" />
+
+      {/* تعداد مارکت‌ها */}
+      <div className="mx-auto max-w-7xl px-4 md:px-6 mb-6">
+        <p className="text-gray-400 text-sm">
+          Fetched {rawMarkets.length} markets • Showing {filteredMarkets.length} matching criteria
         </p>
       </div>
 
-      <p className="text-center text-gray-400 mb-8">
-        Fetched {rawMarkets.length} markets • Showing {filteredMarkets.length}{" "}
-        matching criteria
-      </p>
+      {/* کارت‌ها - ظاهر کمی مدرن‌تر شد ولی منطق همونه */}
+      <div className="mx-auto max-w-7xl px-4 md:px-6">
+        <InfiniteScroll
+          dataLength={filteredMarkets.length}
+          next={loadMoreRaw}
+          hasMore={hasMore}
+          loader={
+            <p className="text-center my-10 text-gray-400 text-lg">
+              <ImSpinner8 className="animate-spin inline mr-2" /> Loading...
+            </p>
+          }
+          endMessage={
+            <p className="text-center my-10 text-gray-500 text-lg">
+              No more matching markets.
+            </p>
+          }
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {filteredMarkets.map((market) => {
+              const highestProb = Math.max(...market.outcomePrices) * 100;
+              const isBinary =
+                market.outcomes.length === 2 && market.outcomePrices.length === 2;
+              const yesProb = isBinary ? market.outcomePrices[0] * 100 : null;
+              const noProb = isBinary ? market.outcomePrices[1] * 100 : null;
 
-      <InfiniteScroll
-        dataLength={filteredMarkets.length}
-        next={loadMoreRaw}
-        hasMore={hasMore}
-        loader={
-          <p className="text-center my-10 text-gray-400 text-lg">
-            <ImSpinner8 className="animate-spin inline mr-2" /> Loading...
-          </p>
-        }
-        endMessage={
-          <p className="text-center my-10 text-gray-500 text-lg">
-            No more matching markets.
-          </p>
-        }
-      >
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filteredMarkets.map((market) => {
-            const highestProb = Math.max(...market.outcomePrices) * 100;
-            const isBinary =
-              market.outcomes.length === 2 && market.outcomePrices.length === 2;
-            const yesProb = isBinary ? market.outcomePrices[0] * 100 : null;
-            const noProb = isBinary ? market.outcomePrices[1] * 100 : null;
+              return (
+                <a
+                  key={`${market.id}-${market.slug}`} // کلید ترکیبی - ارور duplicate حل شد
+                  href={`https://polymarket.com/market/${market.slug}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block border border-neutral-800 rounded-xl overflow-hidden transition-all hover:border-neutral-600 bg-neutral-950/50 backdrop-blur-sm"
+                >
+                  <div className="p-4 flex flex-col gap-4">
+                    <div className="flex items-start gap-3">
+                      {market.image && (
+                        <img
+                          src={market.image}
+                          alt={market.question}
+                          className="w-12 h-12 rounded-lg object-cover border border-neutral-700 flex-shrink-0"
+                          onError={(e) => (e.target as HTMLImageElement).style.display = "none"}
+                        />
+                      )}
+                      <h2 className="font-semibold text-base leading-5 line-clamp-2">
+                        {market.question}
+                      </h2>
+                    </div>
 
-            return (
-              <a
-                key={market.id}
-                href={`https://polymarket.com/market/${market.slug}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block border border-gray-700 rounded-xl overflow-hidden transition-all hover:border-gray-500 duration-300 cursor-pointer bg-gray-900/80"
-              >
-                <div className="p-4 flex flex-col gap-5">
-                  <div className="flex items-start gap-3">
-                    {market.image && (
-                      <img
-                        src={market.image}
-                        alt={market.question}
-                        className="w-10 h-10 rounded-lg object-cover border border-gray-700 shadow-md flex-shrink-0"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).style.display = "none";
-                        }}
-                      />
-                    )}
-                    <h2 className="font-bold text-[15px] leading-5 line-clamp-2 text-white">
-                      {market.question}
-                    </h2>
-                  </div>
-
-                  <div className="flex gap-2 mb-">
-                    {isBinary ? (
-                      <>
-                        <div className="flex-1 bg-green-900/50 rounded-lg py-2.5 px-3 text-center font-bold text-green-300 text-sm">
-                          Yes {yesProb?.toFixed(0)}%
-                        </div>
-                        <div className="flex-1 bg-red-900/50 rounded-lg py-2.5 px-3 text-center font-bold text-red-300 text-sm">
-                          No {noProb?.toFixed(0)}%
-                        </div>
-                      </>
-                    ) : (
-                      <div className="grid grid-cols-2 gap-2 w-full">
-                        {market.outcomes.map((outcome, i) => (
-                          <div
-                            key={i}
-                            className={`text-center rounded-lg py-2 px-3 font-medium text-xs ${
-                              market.outcomePrices[i] * 100 === highestProb
-                                ? "bg-blue-900/60 text-blue-200"
-                                : "bg-gray-800 text-gray-300"
-                            }`}
-                          >
-                            {outcome.slice(0, 12)}...{" "}
-                            {(market.outcomePrices[i] * 100).toFixed(0)}%
+                    <div className="flex gap-2">
+                      {isBinary ? (
+                        <>
+                          <div className="flex-1 bg-green-950/50 rounded-lg py-2 px-3 text-center font-semibold text-green-400 text-sm">
+                            Yes {yesProb?.toFixed(0)}%
                           </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <p className="text-xs text-gray-400">
-                    Highest: {highestProb.toFixed(1)}% • Vol: $
-                    {(market.volume / 1000).toFixed(1)}k • Days left: {market.daysLeft}
-                  </p>
+                          <div className="flex-1 bg-red-950/50 rounded-lg py-2 px-3 text-center font-semibold text-red-400 text-sm">
+                            No {noProb?.toFixed(0)}%
+                          </div>
+                        </>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-2 w-full">
+                          {market.outcomes.map((outcome, i) => (
+                            <div
+                              key={i}
+                              className={`text-center rounded-lg py-2 px-3 font-medium text-xs ${
+                                market.outcomePrices[i] * 100 === highestProb
+                                  ? "bg-blue-950/50 text-blue-300"
+                                  : "bg-neutral-900 text-neutral-300"
+                              }`}
+                            >
+                              {outcome.slice(0, 12)}... {(market.outcomePrices[i] * 100).toFixed(0)}%
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
 
-                </div>
-              </a>
-            );
-          })}
-        </div>
-      </InfiniteScroll>
+                    <p className="text-xs text-neutral-500 flex justify-between">
+                      <span>Highest: {highestProb.toFixed(1)}%</span>
+                      <span>Vol: ${(market.volume / 1000).toFixed(1)}k</span>
+                      <span>Time: {market.daysLeft}d</span>
+                    </p>
+                  </div>
+                </a>
+              );
+            })}
+          </div>
+        </InfiniteScroll>
+      </div>
 
       {filteredMarkets.length === 0 && !hasMore && (
-        <p className="text-center text-gray-500 mt-16 text-xl">
+        <p className="text-center text-neutral-500 mt-16 text-xl">
           No markets with Yes between {minYesProb}% and {maxYesProb}%
         </p>
       )}
