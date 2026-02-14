@@ -5,9 +5,9 @@ import { Montserrat } from "next/font/google";
 
 const montserrat = Montserrat({
   subsets: ["latin"],
+  weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
   variable: "--font-montserrat",
-  weight: ["300", "400", "500", "600", "700"],
-  display: "swap",
+  display: "swap", // ← این مهمه برای جلوگیری از FOUT
 });
 
 export const metadata: Metadata = {
@@ -21,15 +21,22 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className={montserrat.variable}>
-      <body className="antialiased">
+    <html lang="en" suppressHydrationWarning>
+      <body
+        className={`
+          ${montserrat.variable} 
+          font-[var(--font-montserrat)]  
+          antialiased
+          bg-neutral-950
+        `}
+      >
         <ThemeProvider
           attribute="class"
-          defaultTheme="dark"     
+          defaultTheme="dark"
           enableSystem
-          disableTransitionOnChange   
+          disableTransitionOnChange
         >
-          {children}
+          <div className="">{children}</div>
         </ThemeProvider>
       </body>
     </html>

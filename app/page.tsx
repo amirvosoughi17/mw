@@ -6,150 +6,38 @@ import { ImSpinner8 } from "react-icons/im";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { VscSettings } from "react-icons/vsc";
+import { IoIosSearch } from "react-icons/io";
+import { IoFilter } from "react-icons/io5";
+import { IoTimerOutline } from "react-icons/io5";
 
-const mainCategories = [
-  "all",
-  "politics",
-  "sports",
-  "crypto",
-  "finance",
-  "geopolitics",
-  "earnings",
-  "tech",
-  "culture",
-  "world",
-  "economy",
-  "climate-science",
-  "elections",
-];
-
-const categoryLabels: { [key: string]: string } = {
-  all: "All",
-  politics: "Politics",
-  sports: "Sports",
-  crypto: "Crypto",
-  finance: "Finance",
-  geopolitics: "Geopolitics",
-  earnings: "Earnings",
-  tech: "Tech",
-  culture: "Culture",
-  world: "World",
-  economy: "Economy",
-  "climate-science": "Climate & Science",
-  elections: "Elections",
-};
-
-const categoryKeywords: { [category: string]: string[] } = {
-  politics: [
-    "trump",
-    "biden",
-    "kamala",
-    "harris",
-    "election",
-    "vote",
-    "congress",
-    "senate",
-    "president",
-    "democrat",
-    "republican",
-    "politics",
-  ],
-  elections: ["election", "vote", "president", "primary", "ballot", "campaign"],
-  crypto: [
-    "bitcoin",
-    "btc",
-    "eth",
-    "ethereum",
-    "solana",
-    "crypto",
-    "token",
-    "blockchain",
-    "nft",
-    "defi",
-  ],
-  finance: [
-    "stock",
-    "fed",
-    "interest rate",
-    "inflation",
-    "bond",
-    "treasury",
-    "finance",
-  ],
-  sports: [
-    "nfl",
-    "nba",
-    "super bowl",
-    "ncaa",
-    "world cup",
-    "olympics",
-    "football",
-    "basketball",
-    "baseball",
-    "sports",
-  ],
-  geopolitics: [
-    "war",
-    "ukraine",
-    "russia",
-    "china",
-    "taiwan",
-    "iran",
-    "israel",
-    "palestine",
-    "regime",
-    "military",
-  ],
-  culture: [
-    "oscar",
-    "grammy",
-    "movie",
-    "tv",
-    "music",
-    "celebrity",
-    "hollywood",
-    "gta",
-    "game",
-    "album",
-    "music",
-  ],
-  tech: [
-    "apple",
-    "google",
-    "ai",
-    "openai",
-    "tesla",
-    "elon",
-    "meta",
-    "x.com",
-    "tech",
-  ],
-  economy: ["gdp", "recession", "jobs", "unemployment", "tariff", "economy"],
-  world: ["world", "global", "international", "eu", "nato"],
-  "climate-science": [
-    "climate",
-    "temperature",
-    "co2",
-    "nasa",
-    "space",
-    "vaccine",
-    "science",
-  ],
-};
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { ArrowUpDown } from "lucide-react";
+import {
+  mainCategories,
+  categoryLabels,
+  categoryKeywords,
+} from "@/constants/categories";
+import { ModeToggle } from "@/components/dark-light";
 
 export default function HomePage() {
   const [rawMarkets, setRawMarkets] = useState<any[]>([]);
   const [hasMore, setHasMore] = useState(true);
   const [offset, setOffset] = useState(0);
   const limit = 100;
-  const maxRawToFetch = 10000;
+  const maxRawToFetch = 6000;
   const [seenIds, setSeenIds] = useState<Set<string>>(new Set());
 
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
 
-  const [minYesProb, setMinYesProb] = useState(20);
-  const [maxYesProb, setMaxYesProb] = useState(40);
+  const [minYesProb, setMinYesProb] = useState(2);
+  const [maxYesProb, setMaxYesProb] = useState(98);
 
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -157,6 +45,11 @@ export default function HomePage() {
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
 
   const [sheetOpen, setSheetOpen] = useState(false);
+
+  const minDisplayItems = 20;
+
+  // تگ‌های ثابت مورد نظر شما
+  const trendingTags = ["fed", "iran", "f1", "trump"];
 
   const loadMoreRaw = async () => {
     if (!hasMore || rawMarkets.length >= maxRawToFetch) {
@@ -166,7 +59,9 @@ export default function HomePage() {
 
     try {
       const res = await fetch(
-        `/api/raw-markets?offset=${offset}&limit=${limit}`
+        `/api/raw-markets?offset=${offset}&limit=${limit}&minYes=${minYesProb}&maxYes=${maxYesProb}&category=${
+          selectedCategory === "all" ? "" : selectedCategory
+        }`
       );
       if (!res.ok) throw new Error("Fetch failed");
       const { rawMarkets: newRaw, hasMore: newHasMore } = await res.json();
@@ -197,18 +92,15 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    if (minYesProb > maxYesProb) {
-      setMaxYesProb(minYesProb);
-    }
+    if (minYesProb > maxYesProb) setMaxYesProb(minYesProb);
   }, [minYesProb]);
 
   useEffect(() => {
-    if (maxYesProb < minYesProb) {
-      setMinYesProb(maxYesProb);
-    }
+    if (maxYesProb < minYesProb) setMinYesProb(maxYesProb);
   }, [maxYesProb]);
 
   const filteredMarkets = useMemo(() => {
+    const seen = new Set<string>();
     let markets = rawMarkets
       .map((market: any) => {
         let outcomePrices: number[] = [];
@@ -237,15 +129,13 @@ export default function HomePage() {
         }
 
         const endDate = market.endDateIso ?? "";
-        const daysLeft = endDate
-          ? Math.max(
-              0,
-              Math.ceil(
-                (new Date(endDate).getTime() - new Date().getTime()) /
-                  (1000 * 3600 * 24)
-              )
-            )
-          : 0;
+        const endTime = new Date(endDate).getTime();
+        const now = new Date().getTime();
+        const timeLeftMs = Math.max(0, endTime - now);
+        const daysLeft = Math.floor(timeLeftMs / (1000 * 3600 * 24));
+        const hoursLeft = Math.floor(
+          (timeLeftMs % (1000 * 3600 * 24)) / (1000 * 3600)
+        );
 
         return {
           id: market.id ?? "",
@@ -259,6 +149,7 @@ export default function HomePage() {
           image: market.image || market.icon || "",
           endDate,
           daysLeft,
+          hoursLeft,
         };
       })
       .filter((m) => {
@@ -268,16 +159,25 @@ export default function HomePage() {
           m.outcomes.length === 2 && m.outcomePrices.length === 2;
         if (!isBinary) return true;
 
-        const yesProb = m.outcomePrices[0] * 100;
-
+        const yesProb = Math.round((m.outcomePrices[0] ?? 0) * 100);
         return yesProb >= minYesProb && yesProb <= maxYesProb;
       })
-      .filter(
-        (m) => selectedCategory === "all" || m.category === selectedCategory
-      )
+      .filter((m) => {
+        // وقتی سرچ فعال است → کتگوری را نادیده بگیر
+        if (searchTerm.trim() !== "") {
+          return true;
+        }
+        return selectedCategory === "all" || m.category === selectedCategory;
+      })
       .filter((m) =>
         m.question.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+      )
+      .filter((m) => {
+        const compositeKey = `${m.id}-${m.slug}`;
+        if (seen.has(compositeKey)) return false;
+        seen.add(compositeKey);
+        return true;
+      });
 
     if (sortKey) {
       markets = markets.sort((a, b) => {
@@ -288,11 +188,34 @@ export default function HomePage() {
     }
 
     return markets;
-  }, [rawMarkets, selectedCategory, minYesProb, maxYesProb, searchTerm, sortKey, sortOrder]);
+  }, [
+    rawMarkets,
+    selectedCategory,
+    minYesProb,
+    maxYesProb,
+    searchTerm,
+    sortKey,
+    sortOrder,
+  ]);
+
+  useEffect(() => {
+    if (
+      filteredMarkets.length < minDisplayItems &&
+      hasMore &&
+      rawMarkets.length < maxRawToFetch
+    ) {
+      loadMoreRaw();
+    }
+  }, [filteredMarkets, hasMore, rawMarkets.length]);
 
   const toggleSort = (key: "volume" | "daysLeft") => {
     if (sortKey === key) {
-      setSortOrder(sortOrder === "desc" ? "asc" : "desc");
+      if (sortOrder === "desc") {
+        setSortOrder("asc");
+      } else {
+        setSortKey(null);
+        setSortOrder("desc");
+      }
     } else {
       setSortKey(key);
       setSortOrder("desc");
@@ -300,60 +223,138 @@ export default function HomePage() {
     setSheetOpen(false);
   };
 
-  return (
-    <main className="min-h-screen bg-black text-white">
-      {/* نوار بالا - ثابت با ظاهر جدید */}
-      <div className="fixed top-0 left-0 right-0 z-50 border-b border-neutral-800 bg-black/90 backdrop-blur-xl">
-        <div className="mx-auto max-w-7xl px-4 py-4 md:px-6">
-          <div className="flex items-center justify-between gap-4">
-            {/* لوگو جدید */}
-            <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
-              Money <span className="text-blue-500">Wins</span>
-            </h1>
+  const effectiveHasMore =
+    hasMore &&
+    (filteredMarkets.length < 100 || rawMarkets.length < maxRawToFetch - limit);
 
-            {/* سرچ جدید */}
-            <div className="hidden md:block flex-1 max-w-xl">
+  return (
+    <main className="min-h-screen bg-neutral-950 text-white">
+      <div className="fixed top-0 left-0 right-0 z-50 border-b border-neutral-800 bg-black/70 backdrop-blur-lg">
+        <div className="mx-auto max-w-7xl px-5 py-3 md:py-3 md:px-8">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center w-full gap-8 md:gap-6">
+              <div className="flex flex-col gap-0 items-end">
+                <h1
+                  className="
+                    text-lg md:text-[20px] 
+                    font-bold tracking-tight
+                    font-montserrat !important  mb-[-4px] md:mb-[-5.5px]
+                  "
+                >
+                  FINANCE
+                </h1>
+                <div className="flex items-center gap-1 mt-[-4.5px] md:mt-[-5.5px]">
+                  <span className="font-light tracking-wide text-[15px] ">
+                    GROUP
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className="flex"></div>
+          </div>
+        </div>
+      </div>
+
+      <div className="h-[80px] md:h-[90px]" />
+
+      <div className="mx-auto max-w-7xl px-4 md:px-6 ">
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-2">
+            <div className="relative w-full">
               <Input
                 type="search"
                 placeholder="Search Predictions..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="bg-neutral-900 border-neutral-700 text-white placeholder:text-neutral-500 focus:border-blue-500 h-10 rounded-lg"
+                className="
+                  h-10 pl-10 pr-4
+                  rounded-full
+                  border-none
+                  bg-neutral-800/70
+                  backdrop-blur-sm
+                  text-white
+                  placeholder:text-neutral-400/90
+                "
               />
+
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <IoIosSearch className="h-5 w-5 text-neutral-400" />
+              </div>
+
+              {/* تگ‌های ثابت مورد نظر شما - فقط در md به بالا */}
+              {/* <div className="hidden md:flex absolute inset-y-0 right-0 items-center pr-4 gap-1.5 overflow-x-auto">
+                {["federal", "iran", "f1", "trump"].map((tag) => (
+                  <Badge variant="ghost" className=" text-neutral-300 cursor-pointer px-4 py-1" key={tag} onClick={() => setSearchTerm(tag)}>
+                    {tag}
+                  </Badge>
+                ))}
+              </div> */}
             </div>
 
-            {/* دکمه فیلتر جدید */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 md:gap-2">
+                {/* دکمه Volume */}
+                <Button
+                  variant={sortKey === "volume" ? "default" : "ghost"}
+                  onClick={() => toggleSort("volume")}
+                  size="icon"
+                  className="
+                    md:size-auto
+                    md:px-4 md:py-2
+                    md:text-sm font-medium
+                    justify-center
+                    transition-all duration-200
+                  "
+                >
+                  <ArrowUpDown className="h-5 w-5" />
+                  <span className="hidden md:inline ml-2">Volume</span>
+                </Button>
+
+                <Button
+                  variant={sortKey === "daysLeft" ? "default" : "ghost"}
+                  onClick={() => toggleSort("daysLeft")}
+                  size="icon"
+                  className="
+                    md:size-auto
+                    md:px-4 md:py-2
+                    md:text-sm font-medium
+                    justify-center
+                    transition-all duration-200
+                  "
+                >
+                  <IoTimerOutline className="h-5 w-5" />
+                  <span className="hidden md:inline ml-2">Time Left</span>
+                </Button>
+              </div>
+
               <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
                 <SheetTrigger asChild>
-                  <Button variant="outline" size="sm" className="md:hidden">
-                    Filters
+                  <Button variant="secondary" size="icon" className="md:hidden">
+                    <IoFilter />
                   </Button>
                 </SheetTrigger>
                 <SheetTrigger asChild>
-                  <Button variant="outline" size="sm" className="hidden md:flex">
+                  <Button
+                    variant="secondary"
+                    size="default"
+                    className="hidden md:flex"
+                  >
+                    <VscSettings />
                     Show Filters
                   </Button>
                 </SheetTrigger>
 
-                <SheetContent side="right" className="w-full sm:w-[380px] bg-neutral-950 border-l border-neutral-800">
+                <SheetContent
+                  side="right"
+                  className="w-full sm:w-[380px] bg-neutral-950 border-l border-neutral-800"
+                >
                   <SheetHeader>
-                    <SheetTitle className="text-white text-xl mb-6">Filters & Sort</SheetTitle>
+                    <SheetTitle className="text-white text-xl mb-6">
+                      Filters & Sort
+                    </SheetTitle>
                   </SheetHeader>
 
-                  <div className="space-y-8 py-6">
-                    {/* سرچ در موبایل */}
-                    <div className="md:hidden">
-                      <Input
-                        type="search"
-                        placeholder="Search Predictions..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="bg-neutral-900 border-neutral-700 text-white placeholder:text-neutral-500 focus:border-blue-500 rounded-lg"
-                      />
-                    </div>
-
-                    {/* اسلایدر Yes جدید */}
+                  <div className="space-y-8 px-4 py-6">
                     <div>
                       <label className="block text-gray-300 text-sm mb-4 font-medium text-center">
                         Yes Probability Range
@@ -367,7 +368,7 @@ export default function HomePage() {
                           value={[minYesProb, maxYesProb]}
                           min={0}
                           max={100}
-                          step={5}
+                          step={1}
                           onValueChange={(values) => {
                             const [newMin, newMax] = values;
                             setMinYesProb(newMin);
@@ -376,33 +377,9 @@ export default function HomePage() {
                           className="w-full"
                         />
                         <p className="text-center text-gray-500 text-xs">
-                          Showing markets with Yes between {minYesProb}% and {maxYesProb}%
+                          Showing markets with Yes between {minYesProb}% and{" "}
+                          {maxYesProb}%
                         </p>
-                      </div>
-                    </div>
-
-                    {/* مرتب‌سازی جدید */}
-                    <div className="space-y-4">
-                      <label className="block text-gray-300 text-sm font-medium text-center">
-                        Sort By
-                      </label>
-                      <div className="grid gap-3">
-                        <Button
-                          variant={sortKey === "volume" ? "default" : "outline"}
-                          onClick={() => toggleSort("volume")}
-                          className="justify-between"
-                        >
-                          <span>Volume</span>
-                          <span>{sortKey === "volume" ? (sortOrder === "desc" ? "High to Low ↓" : "Low to High ↑") : ""}</span>
-                        </Button>
-                        <Button
-                          variant={sortKey === "daysLeft" ? "default" : "outline"}
-                          onClick={() => toggleSort("daysLeft")}
-                          className="justify-between"
-                        >
-                          <span>Time Left</span>
-                          <span>{sortKey === "daysLeft" ? (sortOrder === "desc" ? "Longest First ↓" : "Shortest First ↑") : ""}</span>
-                        </Button>
                       </div>
                     </div>
                   </div>
@@ -411,67 +388,75 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* دسته‌بندی‌ها با ظاهر جدید */}
-          <div className="flex gap-3 md:gap-6 justify-start overflow-x-auto py-4 scrollbar-hide">
-            {mainCategories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={`text-sm md:text-base font-medium transition-all duration-300 whitespace-nowrap ${
-                  selectedCategory === cat
-                    ? "text-white underline underline-offset-4 decoration-blue-500"
-                    : "text-neutral-400 hover:text-neutral-200"
-                }`}
-              >
-                {categoryLabels[cat]}
-              </button>
-            ))}
+          {/* بخش کتگوری‌ها با افکت گرادینت fade فقط از سمت راست */}
+          <div className="relative w-full overflow-hidden">
+            {/* گرادینت fade فقط سمت راست */}
+            <div className="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-neutral-950 to-transparent z-10" />
+
+            <div className="flex gap-1 justify-start overflow-x-auto scrollbar-hide relative z-0">
+              {mainCategories.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`text-[15px] px-4 py-2 font-medium rounded-lg cursor-pointer transition-all duration-300 whitespace-nowrap flex-shrink-0 ${
+                    selectedCategory === cat
+                      ? "text-white bg-neutral-700/50 "
+                      : "text-neutral-400 hover:text-neutral-200"
+                  }`}
+                >
+                  {categoryLabels[cat]}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* فضای خالی زیر نوار */}
-      <div className="h-[140px] md:h-[160px]" />
+      <div className="mx-auto max-w-7xl px-4 md:px-6 mb-4 flex items-center justify-between gap-4"></div>
 
-      {/* تعداد مارکت‌ها */}
-      <div className="mx-auto max-w-7xl px-4 md:px-6 mb-6">
-        <p className="text-gray-400 text-sm">
-          Fetched {rawMarkets.length} markets • Showing {filteredMarkets.length} matching criteria
-        </p>
-      </div>
-
-      {/* کارت‌ها - ظاهر کمی مدرن‌تر شد ولی منطق همونه */}
       <div className="mx-auto max-w-7xl px-4 md:px-6">
         <InfiniteScroll
           dataLength={filteredMarkets.length}
           next={loadMoreRaw}
-          hasMore={hasMore}
+          hasMore={effectiveHasMore}
           loader={
             <p className="text-center my-10 text-gray-400 text-lg">
-              <ImSpinner8 className="animate-spin inline mr-2" /> Loading...
+              <ImSpinner8 className="animate-spin inline mr-2" /> Loading
+              more...
             </p>
           }
           endMessage={
-            <p className="text-center my-10 text-gray-500 text-lg">
-              No more matching markets.
+            <p className="text-center my-10 text-neutral-500 text-lg">
+              {rawMarkets.length >= maxRawToFetch
+                ? "Reached maximum fetchable markets"
+                : "No more matching markets found"}
             </p>
           }
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {filteredMarkets.map((market) => {
+            {filteredMarkets.map((market, index) => {
               const highestProb = Math.max(...market.outcomePrices) * 100;
               const isBinary =
-                market.outcomes.length === 2 && market.outcomePrices.length === 2;
-              const yesProb = isBinary ? market.outcomePrices[0] * 100 : null;
-              const noProb = isBinary ? market.outcomePrices[1] * 100 : null;
+                market.outcomes.length === 2 &&
+                market.outcomePrices.length === 2;
+              const yesProb = isBinary
+                ? Math.round(market.outcomePrices[0] * 100)
+                : null;
+              const noProb = isBinary
+                ? Math.round(market.outcomePrices[1] * 100)
+                : null;
+              const timeDisplay =
+                market.daysLeft < 3
+                  ? `${market.daysLeft}d ${market.hoursLeft}h`
+                  : `${market.daysLeft}d`;
 
               return (
                 <a
-                  key={`${market.id}-${market.slug}`} // کلید ترکیبی - ارور duplicate حل شد
+                  key={`${market.id}-${market.slug}-${index}`}
                   href={`https://polymarket.com/market/${market.slug}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block border border-neutral-800 rounded-xl overflow-hidden transition-all hover:border-neutral-600 bg-neutral-950/50 backdrop-blur-sm"
+                  className="block border border-neutral-800 rounded-xl overflow-hidden transition-all duration-300 hover:border-neutral-600 bg-neutral-900 backdrop-blur-sm"
                 >
                   <div className="p-4 flex flex-col gap-4">
                     <div className="flex items-start gap-3">
@@ -480,10 +465,13 @@ export default function HomePage() {
                           src={market.image}
                           alt={market.question}
                           className="w-12 h-12 rounded-lg object-cover border border-neutral-700 flex-shrink-0"
-                          onError={(e) => (e.target as HTMLImageElement).style.display = "none"}
+                          onError={(e) =>
+                            ((e.target as HTMLImageElement).style.display =
+                              "none")
+                          }
                         />
                       )}
-                      <h2 className="font-semibold text-base leading-5 line-clamp-2">
+                      <h2 className="font-semibold text-sm md:text-[15px] leading-5 line-clamp-2">
                         {market.question}
                       </h2>
                     </div>
@@ -492,10 +480,10 @@ export default function HomePage() {
                       {isBinary ? (
                         <>
                           <div className="flex-1 bg-green-950/50 rounded-lg py-2 px-3 text-center font-semibold text-green-400 text-sm">
-                            Yes {yesProb?.toFixed(0)}%
+                            Yes {yesProb}%
                           </div>
                           <div className="flex-1 bg-red-950/50 rounded-lg py-2 px-3 text-center font-semibold text-red-400 text-sm">
-                            No {noProb?.toFixed(0)}%
+                            No {noProb}%
                           </div>
                         </>
                       ) : (
@@ -509,17 +497,17 @@ export default function HomePage() {
                                   : "bg-neutral-900 text-neutral-300"
                               }`}
                             >
-                              {outcome.slice(0, 12)}... {(market.outcomePrices[i] * 100).toFixed(0)}%
+                              {outcome.slice(0, 12)}...{" "}
+                              {(market.outcomePrices[i] * 100).toFixed(0)}%
                             </div>
                           ))}
                         </div>
                       )}
                     </div>
 
-                    <p className="text-xs text-neutral-500 flex justify-between">
-                      <span>Highest: {highestProb.toFixed(1)}%</span>
+                    <p className="text-xs text-neutral-400/70 flex justify-between">
                       <span>Vol: ${(market.volume / 1000).toFixed(1)}k</span>
-                      <span>Time: {market.daysLeft}d</span>
+                      <span>Time: {timeDisplay}</span>
                     </p>
                   </div>
                 </a>
@@ -529,9 +517,9 @@ export default function HomePage() {
         </InfiniteScroll>
       </div>
 
-      {filteredMarkets.length === 0 && !hasMore && (
+      {filteredMarkets.length === 0 && !effectiveHasMore && (
         <p className="text-center text-neutral-500 mt-16 text-xl">
-          No markets with Yes between {minYesProb}% and {maxYesProb}%
+          No markets found with Yes between {minYesProb}% and {maxYesProb}%
         </p>
       )}
     </main>
