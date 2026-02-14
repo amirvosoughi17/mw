@@ -25,6 +25,7 @@ import {
   categoryKeywords,
 } from "@/constants/categories";
 import { ModeToggle } from "@/components/dark-light";
+import Header from "@/components/Home/Header";
 
 export default function HomePage() {
   const [rawMarkets, setRawMarkets] = useState<any[]>([]);
@@ -59,8 +60,7 @@ export default function HomePage() {
 
     try {
       const res = await fetch(
-        `/api/raw-markets?offset=${offset}&limit=${limit}&minYes=${minYesProb}&maxYes=${maxYesProb}&category=${
-          selectedCategory === "all" ? "" : selectedCategory
+        `/api/raw-markets?offset=${offset}&limit=${limit}&minYes=${minYesProb}&maxYes=${maxYesProb}&category=${selectedCategory === "all" ? "" : selectedCategory
         }`
       );
       if (!res.ok) throw new Error("Fetch failed");
@@ -110,13 +110,13 @@ export default function HomePage() {
           outcomePrices = JSON.parse(market.outcomePrices || "[]")
             .map((p: string) => parseFloat(p))
             .filter((p: number) => !isNaN(p));
-        } catch {}
+        } catch { }
 
         try {
           outcomes = JSON.parse(market.outcomes || "[]").map((o: string) =>
             o.trim()
           );
-        } catch {}
+        } catch { }
 
         const q = (market.question || "").toLowerCase();
         let cat = "other";
@@ -229,34 +229,8 @@ export default function HomePage() {
 
   return (
     <main className="min-h-screen bg-neutral-950 text-white">
-      <div className="fixed top-0 left-0 right-0 z-50 border-b border-neutral-800 bg-black/70 backdrop-blur-lg">
-        <div className="mx-auto max-w-7xl px-5 py-3 md:py-3 md:px-8">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center w-full gap-8 md:gap-6">
-              <div className="flex flex-col gap-0 items-end">
-                <h1
-                  className="
-                    text-lg md:text-[20px] 
-                    font-bold tracking-tight
-                    font-montserrat !important  mb-[-4px] md:mb-[-5.5px]
-                  "
-                >
-                  FINANCE
-                </h1>
-                <div className="flex items-center gap-1 mt-[-4.5px] md:mt-[-5.5px]">
-                  <span className="font-light tracking-wide text-[15px] ">
-                    GROUP
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div className="flex"></div>
-          </div>
-        </div>
-      </div>
-
+      <Header />
       <div className="h-[80px] md:h-[90px]" />
-
       <div className="mx-auto max-w-7xl px-4 md:px-6 ">
         <div className="flex flex-col gap-4">
           <div className="flex items-center gap-2">
@@ -398,11 +372,10 @@ export default function HomePage() {
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
-                  className={`text-[15px] px-4 py-2 font-medium rounded-lg cursor-pointer transition-all duration-300 whitespace-nowrap flex-shrink-0 ${
-                    selectedCategory === cat
+                  className={`text-[15px] px-4 py-2 font-medium rounded-lg cursor-pointer transition-all duration-300 whitespace-nowrap flex-shrink-0 ${selectedCategory === cat
                       ? "text-white bg-neutral-700/50 "
                       : "text-neutral-400 hover:text-neutral-200"
-                  }`}
+                    }`}
                 >
                   {categoryLabels[cat]}
                 </button>
@@ -466,8 +439,8 @@ export default function HomePage() {
                           alt={market.question}
                           className="w-12 h-12 rounded-lg object-cover border border-neutral-700 flex-shrink-0"
                           onError={(e) =>
-                            ((e.target as HTMLImageElement).style.display =
-                              "none")
+                          ((e.target as HTMLImageElement).style.display =
+                            "none")
                           }
                         />
                       )}
@@ -491,11 +464,10 @@ export default function HomePage() {
                           {market.outcomes.map((outcome, i) => (
                             <div
                               key={i}
-                              className={`text-center rounded-lg py-2 px-3 font-medium text-xs ${
-                                market.outcomePrices[i] * 100 === highestProb
+                              className={`text-center rounded-lg py-2 px-3 font-medium text-xs ${market.outcomePrices[i] * 100 === highestProb
                                   ? "bg-blue-950/50 text-blue-300"
                                   : "bg-neutral-900 text-neutral-300"
-                              }`}
+                                }`}
                             >
                               {outcome.slice(0, 12)}...{" "}
                               {(market.outcomePrices[i] * 100).toFixed(0)}%
