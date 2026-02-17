@@ -8,7 +8,7 @@ datasource db {
 }
 
 model User {
-  id            String    @id
+  id            String       @id
   name          String
   email         String
   emailVerified Boolean
@@ -17,6 +17,7 @@ model User {
   updatedAt     DateTime
   sessions      Session[]
   accounts      Account[]
+  pinnedItems   PinnedItem[]
 
   @@unique([email])
   @@map("user")
@@ -65,4 +66,33 @@ model Verification {
   updatedAt  DateTime?
 
   @@map("verification")
+}
+
+model PinnedItem {
+  id     String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type       PinType
+  externalId String
+
+  title    String?
+  imageUrl String?
+  value    String?
+
+  isFeatured Boolean @default(false)
+  order      Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, type, externalId])
+  @@map("pinned_items")
+}
+
+enum PinType {
+  STOCK
+  CRYPTO
+  POLYMARKET
 }

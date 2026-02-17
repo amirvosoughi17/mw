@@ -5,6 +5,7 @@ import { Montserrat } from "next/font/google";
 import { Poppins } from "next/font/google";
 import { Inter } from "next/font/google";
 import Header from "@/components/Home/Header";
+import { Toaster } from "@/components/ui/sonner";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -33,6 +34,18 @@ export default function RootLayout({
           bg-neutral-950
         `}
       >
+        <Toaster
+          dir="rtl"
+          position="bottom-right"
+          toastOptions={{
+            style: {
+              fontFamily: "Kook",
+              background: "var(--card)",
+              color: "var(--card-foreground)",
+              border: "1px solid var(--border)",
+            },
+          }}
+        />
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
@@ -42,7 +55,7 @@ export default function RootLayout({
           <div className="font-inter !important">
             <Header />
             {children}
-            </div>
+          </div>
         </ThemeProvider>
       </body>
     </html>
