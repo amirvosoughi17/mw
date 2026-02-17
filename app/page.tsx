@@ -229,8 +229,7 @@ export default function HomePage() {
 
   return (
     <main className="min-h-screen bg-neutral-950 text-white">
-      <Header />
-      <div className="h-[80px] md:h-[90px]" />
+      <div className="h-[80px] md:h-[80px]"/>
       <div className="mx-auto max-w-7xl px-4 md:px-6 ">
         <div className="flex flex-col gap-4">
           <div className="flex items-center gap-2">
@@ -393,9 +392,9 @@ export default function HomePage() {
           next={loadMoreRaw}
           hasMore={effectiveHasMore}
           loader={
-            <p className="text-center my-10 text-gray-400 text-lg">
-              <ImSpinner8 className="animate-spin inline mr-2" /> Loading
-              more...
+            <p className="text-center my-10 text-neutral-400 text-md">
+              <ImSpinner8 className="animate-spin inline mr-[2px]" /> Loading...
+              
             </p>
           }
           endMessage={
@@ -437,14 +436,14 @@ export default function HomePage() {
                         <img
                           src={market.image}
                           alt={market.question}
-                          className="w-12 h-12 rounded-lg object-cover border border-neutral-700 flex-shrink-0"
+                          className="w-9 h-9 rounded-md object-cover shadow-md flex-shrink-0"
                           onError={(e) =>
                           ((e.target as HTMLImageElement).style.display =
                             "none")
                           }
                         />
                       )}
-                      <h2 className="font-semibold text-sm md:text-[15px] leading-5 line-clamp-2">
+                      <h2 className="font-semibold text-sm tracking-wide md:text-[13px] text-neutral-100 leading-5 line-clamp-2">
                         {market.question}
                       </h2>
                     </div>

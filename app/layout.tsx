@@ -2,11 +2,14 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Montserrat } from "next/font/google";
+import { Poppins } from "next/font/google";
+import { Inter } from "next/font/google";
+import Header from "@/components/Home/Header";
 
-const montserrat = Montserrat({
+const inter = Inter({
   subsets: ["latin"],
   weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
-  variable: "--font-montserrat",
+  variable: "--font-inter",
   display: "swap",
 });
 
@@ -24,8 +27,8 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body
         className={`
-          ${montserrat.variable} 
-          font-[var(--font-montserrat)]  
+          ${inter.variable} 
+           font-[var(--font-inter)]  
           antialiased
           bg-neutral-950
         `}
@@ -36,7 +39,10 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <div className="">{children}</div>
+          <div className="font-inter !important">
+            <Header />
+            {children}
+            </div>
         </ThemeProvider>
       </body>
     </html>
