@@ -1,56 +1,35 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import InfiniteScroll from "react-infinite-scroll-component";
-import { ImSpinner8 } from "react-icons/im";
-import { Slider } from "@/components/ui/slider";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { VscSettings } from "react-icons/vsc";
-import { IoIosSearch } from "react-icons/io";
-import { IoFilter } from "react-icons/io5";
-import { IoTimerOutline } from "react-icons/io5";
 
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import { ArrowUpDown } from "lucide-react";
-import {
-  mainCategories,
-  categoryLabels,
   categoryKeywords,
 } from "@/constants/categories";
-import { ModeToggle } from "@/components/dark-light";
-import Header from "@/components/Home/Header";
+import { MarketFilter } from "@/components/Filters/MarketFilter";
+import { ListItems } from "@/components/Item/ListItems";
+import { PolymarketMarket } from "@/types/polymarket";
 
 export default function HomePage() {
   const [rawMarkets, setRawMarkets] = useState<any[]>([]);
   const [hasMore, setHasMore] = useState(true);
   const [offset, setOffset] = useState(0);
+  const [seenIds] = useState<Set<string>>(new Set());
+
   const limit = 100;
   const maxRawToFetch = 6000;
-  const [seenIds, setSeenIds] = useState<Set<string>>(new Set());
-
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
-
-  const [minYesProb, setMinYesProb] = useState(2);
-  const [maxYesProb, setMaxYesProb] = useState(98);
 
   const [searchTerm, setSearchTerm] = useState("");
-
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [minYesProb, setMinYesProb] = useState(2);
+  const [maxYesProb, setMaxYesProb] = useState(98);
   const [sortKey, setSortKey] = useState<"volume" | "daysLeft" | null>(null);
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
 
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
 
-  const minDisplayItems = 20;
-
-  // تگ‌های ثابت مورد نظر شما
-  const trendingTags = ["fed", "iran", "f1", "trump"];
+  useEffect(() => {
+    loadMoreRaw();
+  }, []);
 
   const loadMoreRaw = async () => {
     if (!hasMore || rawMarkets.length >= maxRawToFetch) {
@@ -59,68 +38,46 @@ export default function HomePage() {
     }
 
     try {
+      const categoryParam = selectedCategory === "all" ? "" : selectedCategory;
       const res = await fetch(
-        `/api/raw-markets?offset=${offset}&limit=${limit}&minYes=${minYesProb}&maxYes=${maxYesProb}&category=${selectedCategory === "all" ? "" : selectedCategory
-        }`
+        `/api/raw-markets?offset=${offset}&limit=${limit}&minYes=${minYesProb}&maxYes=${maxYesProb}&category=${categoryParam}`
       );
+
       if (!res.ok) throw new Error("Fetch failed");
+
       const { rawMarkets: newRaw, hasMore: newHasMore } = await res.json();
 
       const uniqueNew = newRaw.filter((m: any) => !seenIds.has(m.id));
 
       if (uniqueNew.length > 0) {
         setRawMarkets((prev) => [...prev, ...uniqueNew]);
-        setSeenIds((prev) => {
-          const newSet = new Set(prev);
-          uniqueNew.forEach((m: any) => newSet.add(m.id));
-          return newSet;
-        });
+        uniqueNew.forEach((m: any) => seenIds.add(m.id));
       }
 
-      setHasMore(
-        newHasMore && rawMarkets.length + uniqueNew.length < maxRawToFetch
-      );
+      setHasMore(newHasMore && rawMarkets.length + uniqueNew.length < maxRawToFetch);
       setOffset((prev) => prev + limit);
     } catch (err) {
       console.error(err);
       setHasMore(false);
+    } finally {
+      setIsInitialLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadMoreRaw();
-  }, []);
-
-  useEffect(() => {
-    if (minYesProb > maxYesProb) setMaxYesProb(minYesProb);
-  }, [minYesProb]);
-
-  useEffect(() => {
-    if (maxYesProb < minYesProb) setMinYesProb(maxYesProb);
-  }, [maxYesProb]);
-
   const filteredMarkets = useMemo(() => {
-    const seen = new Set<string>();
     let markets = rawMarkets
       .map((market: any) => {
         let outcomePrices: number[] = [];
         let outcomes: string[] = [];
-
         try {
-          outcomePrices = JSON.parse(market.outcomePrices || "[]")
-            .map((p: string) => parseFloat(p))
-            .filter((p: number) => !isNaN(p));
+          outcomePrices = JSON.parse(market.outcomePrices || "[]").map((p: string) => parseFloat(p)).filter((p: number) => !isNaN(p));
         } catch { }
-
         try {
-          outcomes = JSON.parse(market.outcomes || "[]").map((o: string) =>
-            o.trim()
-          );
+          outcomes = JSON.parse(market.outcomes || "[]").map((o: string) => o.trim());
         } catch { }
 
         const q = (market.question || "").toLowerCase();
         let cat = "other";
-
         for (const [key, keywords] of Object.entries(categoryKeywords)) {
           if (keywords.some((kw) => q.includes(kw))) {
             cat = key;
@@ -128,64 +85,46 @@ export default function HomePage() {
           }
         }
 
-        const endDate = market.endDateIso ?? "";
-        const endTime = new Date(endDate).getTime();
-        const now = new Date().getTime();
-        const timeLeftMs = Math.max(0, endTime - now);
-        const daysLeft = Math.floor(timeLeftMs / (1000 * 3600 * 24));
-        const hoursLeft = Math.floor(
-          (timeLeftMs % (1000 * 3600 * 24)) / (1000 * 3600)
-        );
+        let daysLeft = 0;
+        let hoursLeft = 0;
+        if (market.endDateIso) {
+          const endTime = new Date(market.endDateIso).getTime();
+          const now = Date.now();
+          const diffMs = Math.max(0, endTime - now);
+          daysLeft = Math.floor(diffMs / 86400000);
+          hoursLeft = Math.floor((diffMs % 86400000) / 3600000);
+        }
 
         return {
-          id: market.id ?? "",
-          question: market.question ?? "",
-          slug: market.slug ?? "",
+          ...market,
           outcomes,
           outcomePrices,
-          volume: parseFloat(market.volume ?? "0") || 0,
-          active: market.active ?? false,
           category: cat,
-          image: market.image || market.icon || "",
-          endDate,
           daysLeft,
           hoursLeft,
-        };
+          image: market.image || market.icon || "",
+        } as PolymarketMarket & { daysLeft: number; hoursLeft: number; image?: string };
       })
       .filter((m) => {
-        if (!m.outcomePrices.length || !m.active) return false;
-
-        const isBinary =
-          m.outcomes.length === 2 && m.outcomePrices.length === 2;
+        if (!m.outcomePrices?.length || !m.active) return false;
+        const isBinary = m.outcomes.length === 2 && m.outcomePrices.length === 2;
         if (!isBinary) return true;
-
         const yesProb = Math.round((m.outcomePrices[0] ?? 0) * 100);
         return yesProb >= minYesProb && yesProb <= maxYesProb;
       })
-      .filter((m) => {
-        // وقتی سرچ فعال است → کتگوری را نادیده بگیر
-        if (searchTerm.trim() !== "") {
-          return true;
-        }
-        return selectedCategory === "all" || m.category === selectedCategory;
-      })
       .filter((m) =>
-        m.question.toLowerCase().includes(searchTerm.toLowerCase())
+        searchTerm.trim() === "" ? true : m.question.toLowerCase().includes(searchTerm.toLowerCase())
       )
-      .filter((m) => {
-        const compositeKey = `${m.id}-${m.slug}`;
-        if (seen.has(compositeKey)) return false;
-        seen.add(compositeKey);
-        return true;
-      });
-
-    if (sortKey) {
-      markets = markets.sort((a, b) => {
+      .filter((m) =>
+        searchTerm.trim() !== "" ? true : selectedCategory === "all" || m.category === selectedCategory
+      )
+      // sort
+      .sort((a, b) => {
+        if (!sortKey) return 0;
         const valA = sortKey === "volume" ? a.volume : a.daysLeft;
         const valB = sortKey === "volume" ? b.volume : b.daysLeft;
         return sortOrder === "desc" ? valB - valA : valA - valB;
       });
-    }
 
     return markets;
   }, [
@@ -198,297 +137,48 @@ export default function HomePage() {
     sortOrder,
   ]);
 
-  useEffect(() => {
-    if (
-      filteredMarkets.length < minDisplayItems &&
-      hasMore &&
-      rawMarkets.length < maxRawToFetch
-    ) {
-      loadMoreRaw();
-    }
-  }, [filteredMarkets, hasMore, rawMarkets.length]);
-
   const toggleSort = (key: "volume" | "daysLeft") => {
     if (sortKey === key) {
-      if (sortOrder === "desc") {
-        setSortOrder("asc");
-      } else {
-        setSortKey(null);
-        setSortOrder("desc");
-      }
+      setSortOrder(sortOrder === "desc" ? "asc" : "desc");
     } else {
       setSortKey(key);
       setSortOrder("desc");
     }
-    setSheetOpen(false);
   };
-
-  const effectiveHasMore =
-    hasMore &&
-    (filteredMarkets.length < 100 || rawMarkets.length < maxRawToFetch - limit);
 
   return (
     <main className="min-h-screen bg-neutral-950 text-white">
-      <div className="h-[80px] md:h-[80px]"/>
+      <div className="h-[80px] md:h-[80px]" />
       <div className="mx-auto max-w-7xl px-4 md:px-6 ">
         <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-2">
-            <div className="relative w-full">
-              <Input
-                type="search"
-                placeholder="Search Predictions..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="
-                  h-10 pl-10 pr-4
-                  rounded-full
-                  border-none
-                  bg-neutral-800/70
-                  backdrop-blur-sm
-                  text-white
-                  placeholder:text-neutral-400/90
-                "
-              />
+          <MarketFilter
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            selectedCategory={selectedCategory}
+            onCategoryChange={setSelectedCategory}
+            minYesProb={minYesProb}
+            maxYesProb={maxYesProb}
+            onYesProbChange={(min, max) => {
+              setMinYesProb(min);
+              setMaxYesProb(max);
+            }}
+            sortKey={sortKey}
+            sortOrder={sortOrder}
+            onToggleSort={toggleSort}
+          />
 
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <IoIosSearch className="h-5 w-5 text-neutral-400" />
-              </div>
-
-              {/* تگ‌های ثابت مورد نظر شما - فقط در md به بالا */}
-              {/* <div className="hidden md:flex absolute inset-y-0 right-0 items-center pr-4 gap-1.5 overflow-x-auto">
-                {["federal", "iran", "f1", "trump"].map((tag) => (
-                  <Badge variant="ghost" className=" text-neutral-300 cursor-pointer px-4 py-1" key={tag} onClick={() => setSearchTerm(tag)}>
-                    {tag}
-                  </Badge>
-                ))}
-              </div> */}
-            </div>
-
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2 md:gap-2">
-                {/* دکمه Volume */}
-                <Button
-                  variant={sortKey === "volume" ? "default" : "ghost"}
-                  onClick={() => toggleSort("volume")}
-                  size="icon"
-                  className="
-                    md:size-auto
-                    md:px-4 md:py-2
-                    md:text-sm font-medium
-                    justify-center
-                    transition-all duration-200
-                  "
-                >
-                  <ArrowUpDown className="h-5 w-5" />
-                  <span className="hidden md:inline ml-2">Volume</span>
-                </Button>
-
-                <Button
-                  variant={sortKey === "daysLeft" ? "default" : "ghost"}
-                  onClick={() => toggleSort("daysLeft")}
-                  size="icon"
-                  className="
-                    md:size-auto
-                    md:px-4 md:py-2
-                    md:text-sm font-medium
-                    justify-center
-                    transition-all duration-200
-                  "
-                >
-                  <IoTimerOutline className="h-5 w-5" />
-                  <span className="hidden md:inline ml-2">Time Left</span>
-                </Button>
-              </div>
-
-              <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-                <SheetTrigger asChild>
-                  <Button variant="secondary" size="icon" className="md:hidden">
-                    <IoFilter />
-                  </Button>
-                </SheetTrigger>
-                <SheetTrigger asChild>
-                  <Button
-                    variant="secondary"
-                    size="default"
-                    className="hidden md:flex"
-                  >
-                    <VscSettings />
-                    Show Filters
-                  </Button>
-                </SheetTrigger>
-
-                <SheetContent
-                  side="right"
-                  className="w-full sm:w-[380px] bg-neutral-950 border-l border-neutral-800"
-                >
-                  <SheetHeader>
-                    <SheetTitle className="text-white text-xl mb-6">
-                      Filters & Sort
-                    </SheetTitle>
-                  </SheetHeader>
-
-                  <div className="space-y-8 px-4 py-6">
-                    <div>
-                      <label className="block text-gray-300 text-sm mb-4 font-medium text-center">
-                        Yes Probability Range
-                      </label>
-                      <div className="space-y-6">
-                        <div className="flex justify-between text-sm text-gray-400 px-1">
-                          <span>Min: {minYesProb}%</span>
-                          <span>Max: {maxYesProb}%</span>
-                        </div>
-                        <Slider
-                          value={[minYesProb, maxYesProb]}
-                          min={0}
-                          max={100}
-                          step={1}
-                          onValueChange={(values) => {
-                            const [newMin, newMax] = values;
-                            setMinYesProb(newMin);
-                            setMaxYesProb(newMax);
-                          }}
-                          className="w-full"
-                        />
-                        <p className="text-center text-gray-500 text-xs">
-                          Showing markets with Yes between {minYesProb}% and{" "}
-                          {maxYesProb}%
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </SheetContent>
-              </Sheet>
-            </div>
-          </div>
-
-          {/* بخش کتگوری‌ها با افکت گرادینت fade فقط از سمت راست */}
-          <div className="relative w-full overflow-hidden">
-            {/* گرادینت fade فقط سمت راست */}
-            <div className="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-neutral-950 to-transparent z-10" />
-
-            <div className="flex gap-1 justify-start overflow-x-auto scrollbar-hide relative z-0">
-              {mainCategories.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`text-[15px] px-4 py-2 font-medium rounded-lg cursor-pointer transition-all duration-300 whitespace-nowrap flex-shrink-0 ${selectedCategory === cat
-                      ? "text-white bg-neutral-700/50 "
-                      : "text-neutral-400 hover:text-neutral-200"
-                    }`}
-                >
-                  {categoryLabels[cat]}
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
 
       <div className="mx-auto max-w-7xl px-4 md:px-6 mb-4 flex items-center justify-between gap-4"></div>
 
-      <div className="mx-auto max-w-7xl px-4 md:px-6">
-        <InfiniteScroll
-          dataLength={filteredMarkets.length}
-          next={loadMoreRaw}
-          hasMore={effectiveHasMore}
-          loader={
-            <p className="text-center my-10 text-neutral-400 text-md">
-              <ImSpinner8 className="animate-spin inline mr-[2px]" /> Loading...
-              
-            </p>
-          }
-          endMessage={
-            <p className="text-center my-10 text-neutral-500 text-lg">
-              {rawMarkets.length >= maxRawToFetch
-                ? "Reached maximum fetchable markets"
-                : "No more matching markets found"}
-            </p>
-          }
-        >
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {filteredMarkets.map((market, index) => {
-              const highestProb = Math.max(...market.outcomePrices) * 100;
-              const isBinary =
-                market.outcomes.length === 2 &&
-                market.outcomePrices.length === 2;
-              const yesProb = isBinary
-                ? Math.round(market.outcomePrices[0] * 100)
-                : null;
-              const noProb = isBinary
-                ? Math.round(market.outcomePrices[1] * 100)
-                : null;
-              const timeDisplay =
-                market.daysLeft < 3
-                  ? `${market.daysLeft}d ${market.hoursLeft}h`
-                  : `${market.daysLeft}d`;
-
-              return (
-                <a
-                  key={`${market.id}-${market.slug}-${index}`}
-                  href={`https://polymarket.com/market/${market.slug}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block border border-neutral-800 rounded-xl overflow-hidden transition-all duration-300 hover:border-neutral-600 bg-neutral-900 backdrop-blur-sm"
-                >
-                  <div className="p-4 flex flex-col gap-4">
-                    <div className="flex items-start gap-3">
-                      {market.image && (
-                        <img
-                          src={market.image}
-                          alt={market.question}
-                          className="w-9 h-9 rounded-md object-cover shadow-md flex-shrink-0"
-                          onError={(e) =>
-                          ((e.target as HTMLImageElement).style.display =
-                            "none")
-                          }
-                        />
-                      )}
-                      <h2 className="font-semibold text-sm tracking-wide md:text-[13px] text-neutral-100 leading-5 line-clamp-2">
-                        {market.question}
-                      </h2>
-                    </div>
-
-                    <div className="flex gap-2">
-                      {isBinary ? (
-                        <>
-                          <div className="flex-1 bg-green-950/50 rounded-lg py-2 px-3 text-center font-semibold text-green-400 text-sm">
-                            Yes {yesProb}%
-                          </div>
-                          <div className="flex-1 bg-red-950/50 rounded-lg py-2 px-3 text-center font-semibold text-red-400 text-sm">
-                            No {noProb}%
-                          </div>
-                        </>
-                      ) : (
-                        <div className="grid grid-cols-2 gap-2 w-full">
-                          {market.outcomes.map((outcome, i) => (
-                            <div
-                              key={i}
-                              className={`text-center rounded-lg py-2 px-3 font-medium text-xs ${market.outcomePrices[i] * 100 === highestProb
-                                  ? "bg-blue-950/50 text-blue-300"
-                                  : "bg-neutral-900 text-neutral-300"
-                                }`}
-                            >
-                              {outcome.slice(0, 12)}...{" "}
-                              {(market.outcomePrices[i] * 100).toFixed(0)}%
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    <p className="text-xs text-neutral-400/70 flex justify-between">
-                      <span>Vol: ${(market.volume / 1000).toFixed(1)}k</span>
-                      <span>Time: {timeDisplay}</span>
-                    </p>
-                  </div>
-                </a>
-              );
-            })}
-          </div>
-        </InfiniteScroll>
-      </div>
-
-      {filteredMarkets.length === 0 && !effectiveHasMore && (
+      <ListItems
+        filteredMarkets={filteredMarkets}
+        hasMore={hasMore}
+        isLoading={isInitialLoading}
+        onLoadMore={loadMoreRaw}
+      />
+      {filteredMarkets.length === 0 && (
         <p className="text-center text-neutral-500 mt-16 text-xl">
           No markets found with Yes between {minYesProb}% and {maxYesProb}%
         </p>
