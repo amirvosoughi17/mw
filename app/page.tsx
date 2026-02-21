@@ -149,7 +149,7 @@ export default function HomePage() {
   return (
     <main className="min-h-screen bg-neutral-950 text-white">
       <div className="h-[80px] md:h-[80px]" />
-      <div className="mx-auto max-w-7xl px-4 md:px-6 ">
+      <div className="mx-auto px-4 md:px-6 ">
         <div className="flex flex-col gap-4">
           <MarketFilter
             searchTerm={searchTerm}
@@ -170,7 +170,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl px-4 md:px-6 mb-4 flex items-center justify-between gap-4"></div>
+      <div className="mx-auto px-4 md:px-6 mb-4 flex items-center justify-between gap-4"></div>
 
       <ListItems
         filteredMarkets={filteredMarkets}

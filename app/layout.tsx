@@ -32,6 +32,7 @@ export default function RootLayout({
            font-[var(--font-inter)]  
           antialiased
           bg-neutral-950
+          xl:max-w-[1600px] mx-auto
         `}
       >
         <Toaster
@@ -52,7 +53,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <div className="font-inter !important">
+          <div className="font-inter !important ">
             <Header />
             {children}
           </div>
