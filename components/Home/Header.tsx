@@ -18,16 +18,15 @@ import {
   SheetContent,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { FaRegBookmark, FaBookmark } from "react-icons/fa";
+
 import {
   Menu,
   LayoutDashboard,
   User,
   LogOut,
-  Save,           // آیکون اصلی
-  ExternalLink,
-  Clock,
   BookMarked,
-  Bookmark,
+  ExternalLink,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { readUserPinnedItems } from "@/actions/pinItem/action";
@@ -54,42 +53,39 @@ export default function Header() {
     { href: "/b", label: "Indexes" },
   ];
 
-  const [pinnedItems, setPinnedItems] = useState<any[]>([]);
+  const [pinnedCount, setPinnedCount] = useState<number>(0);
   const [loadingPinned, setLoadingPinned] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    const fetchPinned = async () => {
+    const fetchPinnedCount = async () => {
       setLoadingPinned(true);
       try {
-        if (!sessionHook.data) {
-          return setPinnedItems([]);
-        }
-        const res = await readUserPinnedItems(sessionHook.data.user.id);
-        setPinnedItems(res);
+        if (!session?.user?.id) return;
+        const res = await readUserPinnedItems(session.user.id);
+        setPinnedCount(res?.length || 0);
       } catch (err) {
-        console.error("Error fetching pinned:", err);
+        console.error("Error fetching pinned count:", err);
       } finally {
         setLoadingPinned(false);
       }
     };
 
-    fetchPinned();
-  }, [isAuthenticated]);
+    fetchPinnedCount();
+  }, [isAuthenticated, session?.user?.id]);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 border-b border-neutral-800 bg-black/70 backdrop-blur-md">
-      <div className="mx-auto max-w-7xl px-5 py-3 md:py-3 md:px-8">
+    <header className="xl:max-w-[1600px] mx-auto fixed top-0 left-0 right-0 z-50 border-b border-neutral-800 bg-black/70 backdrop-blur-md">
+      <div className="mx-auto px-5 py-3 md:py-3 md:px-8">
         <div className="flex items-center justify-between gap-4">
-          {/* لوگو و لینک‌ها - بدون تغییر */}
           <div className="flex items-center w-full gap-8 md:gap-8">
             <Link href="/" className="hover:opacity-80 transition-opacity">
               <div className="flex flex-col gap-0 items-end">
-                <h1 className="text-lg md:text-[20px] font-bold font-montserrat mb-[-4px] md:mb-[-4px]">
+                <h1 className="text-lg md:text-[20px] font-bold font-montserrat mb-[-4px] md:mb-[-3px]">
                   SINVESMENT
                 </h1>
-                <div className="flex items-center gap-1 mt-[-2px] md:mt-[-2px]">
+                <div className="flex items-center gap-1 mt-[-1px] md:mt-[-2px]">
                   <span className="font-normal tracking-wide text-[10px] font-montserrat">
                     FINANCE GROUP
                   </span>
@@ -110,67 +106,33 @@ export default function Header() {
             </div>
           </div>
 
-          {/* بخش راست */}
           <div className="flex items-center gap-2.5">
             {isLoading ? (
-              <div className="h-9 w-24 animate-pulse rounded-md bg-muted" />
+              <div className="h-9 w-10 animate-pulse rounded-md bg-muted" />
             ) : isAuthenticated ? (
               <div className="flex items-center gap-2">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="relative">
-                      <Bookmark className="h-5 w-5 text-amber-400" />
-                      {pinnedItems.length > 0 && (
-                        <span className="absolute -top-1 -right-1 bg-amber-600 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
-                          {pinnedItems.length}
-                        </span>
-                      )}
-                    </Button>
-                  </DropdownMenuTrigger>
-
-                  <DropdownMenuContent className="w-80 mt-2 max-h-[70vh] overflow-y-auto bg-neutral-950 border-neutral-800 shadow-2xl" align="end">
-                    <DropdownMenuLabel className="font-medium flex items-center gap-2 px-4 py-3 border-b border-neutral-800">
-                      <Save className="h-4 w-4 text-amber-400" />
-                      <span>پین‌شده‌ها ({pinnedItems.length})</span>
-                    </DropdownMenuLabel>
-
-                    {loadingPinned ? (
-                      <div className="p-4 space-y-3">
-                        <Skeleton className="h-6 w-full" />
-                        <Skeleton className="h-6 w-full" />
-                        <Skeleton className="h-6 w-5/6" />
-                      </div>
-                    ) : pinnedItems.length === 0 ? (
-                      <div className="p-8 text-center text-neutral-500 text-sm">
-                        هنوز هیچ پیش‌بینی‌ای پین نکردید
-                      </div>
-                    ) : (
-                      <div className="py-1">
-                        {pinnedItems.map((item: any) => (
-                          <DropdownMenuItem key={item.id} asChild>
-                            <a
-                              href={`https://polymarket.com/event/${item.externalId}`} // یا slug اگر داری
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center justify-between px-4 py-3 text-sm text-neutral-300 hover:text-white hover:bg-neutral-800/60"
-                            >
-                              <span className="line-clamp-2 flex-1 pr-2">
-                                {item.title || "پیش‌بینی بدون عنوان"}
-                              </span>
-                              <ExternalLink className="h-4 w-4 opacity-60 flex-shrink-0 ml-2" />
-                            </a>
-                          </DropdownMenuItem>
-                        ))}
-                      </div>
+                <Link href="/me">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="relative"
+                    title="پیش‌بینی‌های پین‌شده"
+                  >
+                    <FaBookmark className="h-5 w-5 text-neutral-300" />
+                    {pinnedCount > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-neutral-600 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
+                        {pinnedCount}
+                      </span>
                     )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                  </Button>
+                </Link>
+
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="relative cursor-pointer rounded-full p-0">
                       <Avatar className="h-8.5 lg:h-10 lg:w-10 w-8.5 border-primary">
                         {user?.image ? (
-                          <AvatarImage src={user.image} alt={user.name || "کاربر"} referrerPolicy="no-referrer" />
+                          <AvatarImage src={user.image} alt={user.name || "user"} referrerPolicy="no-referrer" />
                         ) : null}
                         <AvatarFallback>{getInitials(user?.name)}</AvatarFallback>
                       </Avatar>
@@ -210,7 +172,6 @@ export default function Header() {
               </a>
             )}
 
-            {/* منوی موبایل */}
             <div className="md:hidden">
               <Sheet>
                 <SheetTrigger asChild>
